@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payment Receipt - {{.ReceiptNumber}}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 11px; color: #333; padding: 30px; line-height: 1.5; }
+        .receipt-card { max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #10b981; padding-bottom: 12px; margin-bottom: 20px; }
+        .title { font-size: 20px; font-weight: bold; color: #065f46; }
+        .status-badge { background: #d1fae5; color: #065f46; font-weight: bold; padding: 4px 10px; border-radius: 12px; font-size: 11px; }
+        .amount-box { text-align: center; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 15px; margin-bottom: 20px; }
+        .amount-val { font-size: 24px; font-weight: bold; color: #047857; margin-bottom: 4px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .info-row { display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding: 6px 0; }
+        .label { color: #64748b; font-weight: 500; }
+        .value { font-weight: 600; color: #1e293b; }
+        .footer { text-align: center; font-size: 10px; color: #94a3b8; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 12px; }
+    </style>
+</head>
+<body>
+    <div class="receipt-card">
+        <div class="header">
+            <div>
+                <div class="title">PAYMENT RECEIPT</div>
+                <div style="color: #64748b; font-size: 10px;">Receipt #: {{.ReceiptNumber}}</div>
+            </div>
+            <div class="status-badge">PAID</div>
+        </div>
+
+        <div class="amount-box">
+            <div style="font-size: 11px; color: #065f46; text-transform: uppercase;">Amount Paid</div>
+            <div class="amount-val">₹ {{.Amount}}</div>
+            <div style="font-size: 10px; color: #059669; font-style: italic;">{{.AmountInWords}}</div>
+        </div>
+
+        <div class="info-grid">
+            <div>
+                <div class="info-row"><span class="label">Payment Date:</span><span class="value">{{.PaymentDate}}</span></div>
+                <div class="info-row"><span class="label">Payment Mode:</span><span class="value">{{.PaymentMode}}</span></div>
+                <div class="info-row"><span class="label">Transaction Ref:</span><span class="value">{{.TransactionRef}}</span></div>
+            </div>
+            <div>
+                <div class="info-row"><span class="label">Customer Name:</span><span class="value">{{.CustomerName}}</span></div>
+                <div class="info-row"><span class="label">Invoice Ref:</span><span class="value">{{.InvoiceReference}}</span></div>
+                <div class="info-row"><span class="label">Status:</span><span class="value">{{.Status}}</span></div>
+            </div>
+        </div>
+
+        <div style="background: #f8fafc; border-radius: 4px; padding: 10px; font-size: 10px; color: #475569;">
+            <strong>Received From:</strong> {{.CustomerName}} ({{.CustomerEmail}})<br>
+            <strong>Received By:</strong> {{.MerchantName}}<br>
+            <strong>Notes:</strong> {{.Notes}}
+        </div>
+
+        <div class="footer">
+            Thank you for your business! If you have questions about this receipt, contact {{.MerchantSupportEmail}}.
+        </div>
+    </div>
+</body>
+</html>
