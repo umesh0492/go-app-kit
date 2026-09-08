@@ -1,0 +1,45 @@
+---
+extends: default
+
+rules:
+  line-length:
+    max: 250
+    level: warning
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
+
+  document-start: disable
+
+  truthy:
+    level: warning
+    check-keys: false
+
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: disable
+
+  empty-lines:
+    max: 2
+    max-start: 0
+    max-end: 1
+
+  indentation:
+    spaces: 2
+    indent-sequences: whatever
+
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+
+  trailing-spaces:
+    level: error
+
+  key-duplicates:
+    level: error
+
+ignore: |
+  .git/
+  vendor/
