@@ -44,8 +44,9 @@ if [ "$GOLIBS_DEP" != "v0.1.0" ]; then
   exit 1
 fi
 
-if grep -E '^replace github.com/umesh0492/go-libs' go.mod > /dev/null 2>&1; then
-  echo "ℹ️ Note: Local replace directive in go.mod is present for local development."
+if grep -E '^\s*replace\s+' go.mod > /dev/null 2>&1; then
+  echo "❌ Error: Forbidden 'replace' directive found in go.mod. Public releases must not contain local replace directives."
+  exit 1
 fi
 
 echo "✅ All versions and dependencies are strictly bound and synchronized!"

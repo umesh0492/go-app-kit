@@ -9,9 +9,6 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/umesh0492/go-libs v0.1.0
 )
-
-replace github.com/umesh0492/go-libs => ../go-libs
-
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
