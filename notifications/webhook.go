@@ -183,7 +183,7 @@ func parseTaggedSignature(sig, currentTS string) (cleanSig, ts string) {
 	return cleanSig, ts
 }
 
-func verifyLegacyWebhookSignature(secret string, payload []byte, cleanSig, v1Hex string) bool {
+func verifyLegacyWebhookSignature(cleanSig, v1Hex string) bool {
 	expectedIntermediate := "sha256=" + v1Hex
 	return subtle.ConstantTimeCompare([]byte(expectedIntermediate), []byte(cleanSig)) == 1
 }
@@ -225,7 +225,7 @@ func (v *WebhookVerifier) Verify(timestamp, signature string, payload []byte) er
 	}
 
 	v1Hex := strings.TrimPrefix(expectedV1, "v1=")
-	if verifyLegacyWebhookSignature(v.Secret, payload, cleanSig, v1Hex) {
+	if verifyLegacyWebhookSignature(cleanSig, v1Hex) {
 		return nil
 	}
 

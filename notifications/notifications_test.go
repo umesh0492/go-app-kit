@@ -880,3 +880,91 @@ func TestWebhook_BackwardsCompatibility(t *testing.T) {
 		}
 	})
 }
+
+func TestWebhook_ReplayRejectionTable(t *testing.T) {
+	secret := "replay-table-secret-key-123"
+	payload := []byte(`{"event":"payment.completed","id":"tx-12345"}`)
+	now := time.Now()
+
+	tests := []struct {
+		name        string
+		offset      time.Duration
+		tolerance   time.Duration
+		expectError bool
+		errType     error
+	}{
+		{
+			name:        "Current timestamp within 5m tolerance passes",
+			offset:      0,
+			tolerance:   5 * time.Minute,
+			expectError: false,
+		},
+		{
+			name:        "Timestamp 4 minutes ago within 5m tolerance passes",
+			offset:      -4 * time.Minute,
+			tolerance:   5 * time.Minute,
+			expectError: false,
+		},
+		{
+			name:        "Timestamp 5m1s ago outside 5m tolerance fails",
+			offset:      -5*time.Minute - time.Second,
+			tolerance:   5 * time.Minute,
+			expectError: true,
+			errType:     notifications.ErrTimestampExpired,
+		},
+		{
+			name:        "Timestamp 10 minutes ago outside 5m tolerance fails",
+			offset:      -10 * time.Minute,
+			tolerance:   5 * time.Minute,
+			expectError: true,
+			errType:     notifications.ErrTimestampExpired,
+		},
+		{
+			name:        "Timestamp 1 hour ago outside 5m tolerance fails",
+			offset:      -1 * time.Hour,
+			tolerance:   5 * time.Minute,
+			expectError: true,
+			errType:     notifications.ErrTimestampExpired,
+		},
+		{
+			name:        "Future timestamp 6 minutes ahead outside 5m tolerance fails",
+			offset:      6 * time.Minute,
+			tolerance:   5 * time.Minute,
+			expectError: true,
+			errType:     notifications.ErrTimestampExpired,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tsStr := strconv.FormatInt(now.Add(tc.offset).Unix(), 10)
+			sig := notifications.ComputeWebhookSignature(secret, tsStr, payload)
+
+			// 1. VerifyWebhook (uses DefaultWebhookTolerance = 5m)
+			err1 := notifications.VerifyWebhook(secret, tsStr, sig, payload)
+			if tc.expectError {
+				if !errors.Is(err1, tc.errType) {
+					t.Errorf("VerifyWebhook: expected error %v, got %v", tc.errType, err1)
+				}
+			} else {
+				if err1 != nil {
+					t.Errorf("VerifyWebhook: expected success, got %v", err1)
+				}
+			}
+
+			// 2. WebhookVerifier.Verify
+			verifier := notifications.NewWebhookVerifier(secret, tc.tolerance)
+			err2 := verifier.Verify(tsStr, sig, payload)
+			if tc.expectError {
+				if !errors.Is(err2, tc.errType) {
+					t.Errorf("WebhookVerifier.Verify: expected error %v, got %v", tc.errType, err2)
+				}
+			} else {
+				if err2 != nil {
+					t.Errorf("WebhookVerifier.Verify: expected success, got %v", err2)
+				}
+			}
+		})
+	}
+}
+
