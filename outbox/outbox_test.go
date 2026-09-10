@@ -1392,7 +1392,7 @@ func TestPGStore_MarkPublished_SQLValidation(t *testing.T) {
 	if !strings.Contains(sql1, "lease_token = NULL") {
 		t.Errorf("expected lease_token = NULL, got: %s", sql1)
 	}
-	if !strings.Contains(sql1, "WHERE id = $1 AND (lease_token = $2 OR lease_token IS NULL)") {
+	if !strings.Contains(sql1, "WHERE id = $1 AND lease_token = $2") {
 		t.Errorf("expected WHERE clause with lease_token, got: %s", sql1)
 	}
 	if len(capturedArgs[0]) != 2 || capturedArgs[0][0] != evtID || capturedArgs[0][1] != leaseTok {

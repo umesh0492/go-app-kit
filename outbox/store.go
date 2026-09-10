@@ -214,7 +214,7 @@ func (s *pgStore) FetchPendingBatch(ctx context.Context, limit int) ([]Event, er
 }
 
 // MarkPublished marks the event as successfully processed. If a lease token is provided,
-// it validates that the lease has not expired or been acquired by another worker.
+// it validates that the caller holds the active lease (strict fencing).
 func (s *pgStore) MarkPublished(ctx context.Context, id uuid.UUID, leaseToken ...uuid.UUID) error {
 	var query string
 	var args []any
@@ -223,7 +223,7 @@ func (s *pgStore) MarkPublished(ctx context.Context, id uuid.UUID, leaseToken ..
 		query = fmt.Sprintf(`
 			UPDATE %s
 			SET status = 'PUBLISHED', published_at = NOW(), locked_until = NULL, lease_token = NULL, last_error = NULL
-			WHERE id = $1 AND (lease_token = $2 OR lease_token IS NULL)
+			WHERE id = $1 AND lease_token = $2
 		`, s.tableName)
 		args = []any{id, leaseToken[0]}
 	} else {
@@ -246,7 +246,7 @@ func (s *pgStore) MarkPublished(ctx context.Context, id uuid.UUID, leaseToken ..
 }
 
 // MarkFailed updates the event with failure status, increments retry count, or sets to StatusDeadLetter.
-// If a lease token is provided, it validates that the caller still holds the active lease.
+// If a lease token is provided, it validates that the caller still holds the active lease (strict fencing).
 func (s *pgStore) MarkFailed(ctx context.Context, id uuid.UUID, lastErr string, nextRetry time.Time, finalFail bool, leaseToken ...uuid.UUID) error {
 	newStatus := StatusPending
 	if finalFail {
@@ -266,7 +266,7 @@ func (s *pgStore) MarkFailed(ctx context.Context, id uuid.UUID, lastErr string, 
 			    next_retry_at = $3,
 			    locked_until = NULL,
 			    lease_token = NULL
-			WHERE id = $4 AND (lease_token = $5 OR lease_token IS NULL)
+			WHERE id = $4 AND lease_token = $5
 		`, s.tableName)
 		args = []any{newStatus, lastErr, nextRetry, id, leaseToken[0]}
 	} else {
