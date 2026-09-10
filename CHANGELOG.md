@@ -19,6 +19,6 @@ Initial public release.
 - examples/invoice_service: Reference implementation of an invoice management service.
 
 ### Known limitations
-- PDF generator requires a pre-installed wkhtmltopdf binary on the host system.
+- PDF generator requires a pre-installed wkhtmltopdf binary on the host system (NOT Chromium or Google Chrome).
 - Outbox storage requires PostgreSQL 12+ for SKIP LOCKED concurrency support.
 - Email sending uses standard net/smtp without connection pooling.

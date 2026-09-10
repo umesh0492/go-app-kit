@@ -71,3 +71,11 @@ func main() {
     _ = os.WriteFile("invoice.pdf", buf.Bytes(), 0644)
 }
 ```
+
+---
+
+## Known Limitations
+
+- **Binary Requirement**: Requires a pre-installed `wkhtmltopdf` binary in the host system `$PATH` (NOT Chromium, Google Chrome, or CDP). For containerized environments, install `wkhtmltopdf` into the container image.
+- **Unit Testing**: Test suites should utilize mock implementations of the `Generator` interface for deterministic, zero-dependency testing without requiring host binary installation.
+

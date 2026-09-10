@@ -55,7 +55,7 @@ go get github.com/umesh0492/go-app-kit@v0.1.0
 ```
 
 ### Multi-Module Local Development (`go.work`)
-When working across both `go-app-kit` and `go-libs` simultaneously in a monorepo or local directory, use Go 1.18+ workspaces to cleanly resolve dependencies without hardcoding machine-specific relative paths:
+When working across both `go-app-kit` and `go-libs` simultaneously in a monorepo or local directory, use Go workspaces (`go.work`) to cleanly resolve dependencies without hardcoding machine-specific relative paths:
 
 ```bash
 # Initialize a Go workspace at the root directory containing both repositories
@@ -105,7 +105,7 @@ isValid := india.IsValidAadhaar("234567890128")
 ---
 
 ### 2. `pdf` - HTML-to-PDF Document Generator
-In-memory compilation via `wkhtmltopdf` with responsive page options and embedded production templates:
+In-memory compilation via `wkhtmltopdf` (requires host `wkhtmltopdf` binary, NOT Chromium or Google Chrome) with responsive page options and embedded production templates:
 - **Options**: Margins (mm), PageSize (`A4`, `Letter`), Orientation (`Portrait`, `Landscape`), DPI, and Title metadata.
 - **Embedded Templates**:
   - `pdf.GSTInvoiceTemplate`: Indian GST-compliant B2B Tax Invoice with Supplier/Buyer GSTINs, HSN/SAC codes, CGST/SGST/IGST breakdown, Bank NEFT/RTGS details, and Authorized Signatory block.
@@ -274,6 +274,14 @@ make lint
 # Run Go vulnerability scanner
 make vulncheck
 ```
+
+---
+
+## Known Limitations
+
+- **PDF Generation**: Requires a pre-installed `wkhtmltopdf` binary on the host system (NOT Chromium or Google Chrome). In test environments or CI runners without `wkhtmltopdf`, the pluggable `pdf.Generator` interface can be mocked.
+- **Outbox Storage**: Requires PostgreSQL 12+ for `FOR UPDATE SKIP LOCKED` concurrency support.
+- **Email Sending**: Uses standard Go `net/smtp` without connection pooling.
 
 ---
 
