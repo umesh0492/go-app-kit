@@ -4,12 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
+
+var tableNameRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$`)
+
+// ErrInvalidTableName is returned when a table name does not match a valid SQL identifier.
+var ErrInvalidTableName = errors.New("outbox: invalid table name")
 
 // ErrLeaseExpired is returned when updating an outbox event whose lease has expired
 // or been acquired by another worker.
@@ -40,11 +46,16 @@ func WithDialect(d Dialect) StoreOption {
 }
 
 // WithTableName specifies a custom table name for outbox events (default: "outbox_events").
+// It validates the table name against a strict regex identifier ('^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$')
+// before fmt.Sprintf to prevent SQL injection.
 func WithTableName(name string) StoreOption {
 	return func(s *pgStore) {
-		if name != "" {
+		if !tableNameRegex.MatchString(name) {
+			s.initErr = fmt.Errorf("%w: %q does not match identifier pattern '^[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*)?$'", ErrInvalidTableName, name)
 			s.tableName = name
+			return
 		}
+		s.tableName = name
 	}
 }
 
@@ -72,6 +83,7 @@ type pgStore struct {
 	dialect       Dialect
 	tableName     string
 	leaseDuration time.Duration
+	initErr       error
 }
 
 // NewPGStore creates a PostgreSQL-backed outbox store with optional configuration.
@@ -93,6 +105,12 @@ func NewPGStore(db DBOperator, opts ...StoreOption) Store {
 
 // Insert inserts an outbox event using the given transaction or connection operator.
 func (s *pgStore) Insert(ctx context.Context, op DBOperator, event Event) error {
+	if s.initErr != nil {
+		return s.initErr
+	}
+	if !tableNameRegex.MatchString(s.tableName) {
+		return ErrInvalidTableName
+	}
 	if op == nil {
 		op = s.db
 	}
@@ -160,6 +178,12 @@ RETURNING id, aggregate_type, aggregate_id, event_type, payload, retry_count, ma
 
 // FetchPendingBatch queries and atomically leases ready-to-process events using SKIP LOCKED row-level locking.
 func (s *pgStore) FetchPendingBatch(ctx context.Context, limit int) ([]Event, error) {
+	if s.initErr != nil {
+		return nil, s.initErr
+	}
+	if !tableNameRegex.MatchString(s.tableName) {
+		return nil, ErrInvalidTableName
+	}
 	if limit <= 0 {
 		limit = 50
 	}
@@ -216,6 +240,13 @@ func (s *pgStore) FetchPendingBatch(ctx context.Context, limit int) ([]Event, er
 // MarkPublished marks the event as successfully processed. If a lease token is provided,
 // it validates that the caller holds the active lease (strict fencing).
 func (s *pgStore) MarkPublished(ctx context.Context, id uuid.UUID, leaseToken ...uuid.UUID) error {
+	if s.initErr != nil {
+		return s.initErr
+	}
+	if !tableNameRegex.MatchString(s.tableName) {
+		return ErrInvalidTableName
+	}
+
 	var query string
 	var args []any
 
@@ -248,6 +279,13 @@ func (s *pgStore) MarkPublished(ctx context.Context, id uuid.UUID, leaseToken ..
 // MarkFailed updates the event with failure status, increments retry count, or sets to StatusDeadLetter.
 // If a lease token is provided, it validates that the caller still holds the active lease (strict fencing).
 func (s *pgStore) MarkFailed(ctx context.Context, id uuid.UUID, lastErr string, nextRetry time.Time, finalFail bool, leaseToken ...uuid.UUID) error {
+	if s.initErr != nil {
+		return s.initErr
+	}
+	if !tableNameRegex.MatchString(s.tableName) {
+		return ErrInvalidTableName
+	}
+
 	newStatus := StatusPending
 	if finalFail {
 		newStatus = StatusDeadLetter

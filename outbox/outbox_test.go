@@ -1566,3 +1566,60 @@ func TestRelay_RunWorker_DrainErrorLogged(t *testing.T) {
 		t.Fatalf("expected at least 2 fetch calls (initial + drain), got %d", calls)
 	}
 }
+
+func TestPGStore_TableNameValidation(t *testing.T) {
+	mockOp := &mockDBOperator{}
+
+	maliciousNames := []string{
+		"outbox_events; DROP TABLE users;--",
+		"outbox events",
+		"outbox-events",
+		"123outbox",
+		"outbox.table.extra",
+		"",
+	}
+
+	for _, name := range maliciousNames {
+		t.Run("Reject: "+name, func(t *testing.T) {
+			store := outbox.NewPGStore(mockOp, outbox.WithTableName(name))
+
+			err := store.Insert(context.Background(), mockOp, outbox.Event{ID: uuid.New()})
+			if !errors.Is(err, outbox.ErrInvalidTableName) {
+				t.Errorf("expected ErrInvalidTableName on Insert, got: %v", err)
+			}
+
+			_, err = store.FetchPendingBatch(context.Background(), 10)
+			if !errors.Is(err, outbox.ErrInvalidTableName) {
+				t.Errorf("expected ErrInvalidTableName on FetchPendingBatch, got: %v", err)
+			}
+
+			err = store.MarkPublished(context.Background(), uuid.New(), uuid.New())
+			if !errors.Is(err, outbox.ErrInvalidTableName) {
+				t.Errorf("expected ErrInvalidTableName on MarkPublished, got: %v", err)
+			}
+
+			err = store.MarkFailed(context.Background(), uuid.New(), "err", time.Now(), false, uuid.New())
+			if !errors.Is(err, outbox.ErrInvalidTableName) {
+				t.Errorf("expected ErrInvalidTableName on MarkFailed, got: %v", err)
+			}
+		})
+	}
+
+	validNames := []string{
+		"outbox_events",
+		"tenant_outbox",
+		"public.outbox_events",
+		"myschema.custom_events_1",
+	}
+	for _, name := range validNames {
+		t.Run("Allow: "+name, func(t *testing.T) {
+			store := outbox.NewPGStore(mockOp, outbox.WithTableName(name))
+			if qStore, ok := store.(interface{ FetchPendingQuery() string }); ok {
+				q := qStore.FetchPendingQuery()
+				if !strings.Contains(q, name) {
+					t.Errorf("expected query to contain valid table name %s, got: %s", name, q)
+				}
+			}
+		})
+	}
+}
