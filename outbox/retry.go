@@ -1,8 +1,8 @@
 package outbox
 
 import (
-	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"math/rand/v2"
 	"time"
@@ -48,7 +48,7 @@ func BackoffWithJitter(attempt int, baseDelay, maxDelay time.Duration) time.Dura
 // Sentinel errors representing non-retryable poison pill scenarios.
 var (
 	ErrNonRetryable = errors.New("outbox: non-retryable error")
-	ErrPoisonPill   = errors.New("outbox: poison pill event")
+	ErrPoisonPill   = fmt.Errorf("%w: poison pill event", ErrNonRetryable)
 )
 
 // NonRetryableError marks an error as permanently unprocessable (poison pill),
@@ -69,6 +69,11 @@ func (e *NonRetryableError) Unwrap() error {
 	return e.Err
 }
 
+// Is reports whether target matches ErrNonRetryable.
+func (e *NonRetryableError) Is(target error) bool {
+	return target == ErrNonRetryable
+}
+
 func (e *NonRetryableError) NonRetryable() bool {
 	return true
 }
@@ -81,37 +86,22 @@ func MarkNonRetryable(err error) error {
 	return &NonRetryableError{Err: err}
 }
 
-// IsNonRetryable inspects an error to determine whether it indicates a permanent
-// failure (e.g. malformed JSON payloads, schema validation errors, or explicit non-retryable markers).
+// IsNonRetryable reports whether err represents a permanent, non-retryable failure.
+//
+// An error is classified as non-retryable if:
+//  1. It matches ErrNonRetryable (or ErrPoisonPill) via errors.Is.
+//  2. It wraps or is an instance of *NonRetryableError (e.g. produced via MarkNonRetryable).
+//
+// Consumers should either return ErrNonRetryable directly or wrap errors using
+// MarkNonRetryable(err) to signal that an outbox event must immediately transition
+// to dead-letter status without further retry attempts.
 func IsNonRetryable(err error) bool {
 	if err == nil {
 		return false
 	}
-	if errors.Is(err, ErrNonRetryable) || errors.Is(err, ErrPoisonPill) {
+	if errors.Is(err, ErrNonRetryable) {
 		return true
 	}
 	var nr *NonRetryableError
-	if errors.As(err, &nr) {
-		return true
-	}
-	type nonRetryable interface {
-		NonRetryable() bool
-	}
-	var nri nonRetryable
-	if errors.As(err, &nri) {
-		return nri.NonRetryable()
-	}
-	type poisonPill interface {
-		IsPoisonPill() bool
-	}
-	var ppi poisonPill
-	if errors.As(err, &ppi) {
-		return ppi.IsPoisonPill()
-	}
-	var syntaxErr *json.SyntaxError
-	if errors.As(err, &syntaxErr) {
-		return true
-	}
-	var unmarshalTypeErr *json.UnmarshalTypeError
-	return errors.As(err, &unmarshalTypeErr)
+	return errors.As(err, &nr)
 }

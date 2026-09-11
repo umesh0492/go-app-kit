@@ -595,7 +595,10 @@ func TestRelay_DeadLetter_MalformedJSON(t *testing.T) {
 
 	publisher := outbox.PublisherFunc(func(ctx context.Context, event outbox.Event) error {
 		var target map[string]any
-		return event.UnmarshalPayload(&target) // will return json.SyntaxError
+		if err := event.UnmarshalPayload(&target); err != nil {
+			return outbox.MarkNonRetryable(err)
+		}
+		return nil
 	})
 
 	relay, _ := outbox.NewRelay(outbox.RelayConfig{
@@ -616,6 +619,48 @@ func TestRelay_DeadLetter_MalformedJSON(t *testing.T) {
 	}
 	if !store.failedEvents[evt.ID].finalFail {
 		t.Fatalf("expected finalFail to be true for malformed payload")
+	}
+}
+
+func TestIsNonRetryable_Contract(t *testing.T) {
+	// 1. nil error
+	if outbox.IsNonRetryable(nil) {
+		t.Errorf("expected IsNonRetryable(nil) to be false")
+	}
+
+	// 2. ErrNonRetryable
+	if !outbox.IsNonRetryable(outbox.ErrNonRetryable) {
+		t.Errorf("expected IsNonRetryable(ErrNonRetryable) to be true")
+	}
+
+	// 3. Wrapped ErrNonRetryable
+	wrappedSentinel := fmt.Errorf("transport failed: %w", outbox.ErrNonRetryable)
+	if !outbox.IsNonRetryable(wrappedSentinel) {
+		t.Errorf("expected IsNonRetryable(wrappedSentinel) to be true")
+	}
+
+	// 4. ErrPoisonPill
+	if !outbox.IsNonRetryable(outbox.ErrPoisonPill) {
+		t.Errorf("expected IsNonRetryable(ErrPoisonPill) to be true")
+	}
+
+	// 5. MarkNonRetryable
+	customErr := errors.New("invalid payload structure")
+	marked := outbox.MarkNonRetryable(customErr)
+	if !outbox.IsNonRetryable(marked) {
+		t.Errorf("expected IsNonRetryable(MarkNonRetryable) to be true")
+	}
+
+	// 6. Wrapped MarkNonRetryable
+	wrappedMarked := fmt.Errorf("caller wrap: %w", marked)
+	if !outbox.IsNonRetryable(wrappedMarked) {
+		t.Errorf("expected IsNonRetryable(wrappedMarked) to be true")
+	}
+
+	// 7. Standard transient error
+	transientErr := errors.New("dial tcp: connection reset by peer")
+	if outbox.IsNonRetryable(transientErr) {
+		t.Errorf("expected transient error to be retryable (false)")
 	}
 }
 
