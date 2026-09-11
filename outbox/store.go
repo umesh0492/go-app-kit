@@ -149,9 +149,9 @@ func (s *pgStore) Insert(ctx context.Context, op DBOperator, event Event) error 
 	return nil
 }
 
-// FetchPendingQuery returns the SQL query string used to fetch and atomically lease pending events for relay
+// fetchPendingQuery returns the SQL query string used to fetch and atomically lease pending events for relay
 // utilizing row-level locking (FOR UPDATE SKIP LOCKED), fencing tokens, and an atomic CTE leasing state machine.
-func (s *pgStore) FetchPendingQuery() string {
+func (s *pgStore) fetchPendingQuery() string {
 	tbl := s.tableName
 	if tbl == "" {
 		tbl = "outbox_events"
@@ -188,7 +188,7 @@ func (s *pgStore) FetchPendingBatch(ctx context.Context, limit int) ([]Event, er
 		limit = 50
 	}
 
-	query := s.FetchPendingQuery()
+	query := s.fetchPendingQuery()
 	rows, err := s.db.Query(ctx, query, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch pending outbox events: %w", err)

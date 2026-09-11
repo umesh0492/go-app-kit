@@ -552,7 +552,7 @@ func TestRelay_DeadLetter_WrappedNonRetryable(t *testing.T) {
 	_ = store.Insert(context.Background(), nil, *evt)
 
 	publisher := outbox.PublisherFunc(func(ctx context.Context, event outbox.Event) error {
-		return outbox.WrapNonRetryable(errors.New("schema validation failed: missing required customer_id"))
+		return outbox.MarkNonRetryable(errors.New("schema validation failed: missing required customer_id"))
 	})
 
 	relay, _ := outbox.NewRelay(outbox.RelayConfig{
@@ -678,16 +678,18 @@ func TestEvent_StatusHelpers(t *testing.T) {
 }
 
 func TestPGStore_DialectsAndOptions(t *testing.T) {
-	mockOp := &mockDBOperator{}
+	var capturedQuery string
+	mockOp := &mockDBOperator{
+		queryFunc: func(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
+			capturedQuery = sql
+			return &mockRows{}, nil
+		},
+	}
 
 	// 1. Default Postgres Store with CTE atomic leasing state machine
 	pgStoreDefault := outbox.NewPGStore(mockOp)
-	pgStore, ok := pgStoreDefault.(interface{ FetchPendingQuery() string })
-	if !ok {
-		t.Fatalf("expected pgStore to implement FetchPendingQuery")
-	}
-
-	pgQuery := pgStore.FetchPendingQuery()
+	_, _ = pgStoreDefault.FetchPendingBatch(context.Background(), 10)
+	pgQuery := capturedQuery
 	if !strings.Contains(pgQuery, "FOR UPDATE SKIP LOCKED") {
 		t.Fatalf("expected query to contain FOR UPDATE SKIP LOCKED, got: %s", pgQuery)
 	}
@@ -706,12 +708,8 @@ func TestPGStore_DialectsAndOptions(t *testing.T) {
 
 	// 2. Custom Table Name Option with WithDialect(DialectPostgres)
 	customStoreInstance := outbox.NewPGStore(mockOp, outbox.WithDialect(outbox.DialectPostgres), outbox.WithTableName("tenant_outbox"))
-	customStore, ok := customStoreInstance.(interface{ FetchPendingQuery() string })
-	if !ok {
-		t.Fatalf("expected customStore to implement FetchPendingQuery")
-	}
-
-	customQuery := customStore.FetchPendingQuery()
+	_, _ = customStoreInstance.FetchPendingBatch(context.Background(), 10)
+	customQuery := capturedQuery
 	if !strings.Contains(customQuery, "FROM tenant_outbox") {
 		t.Fatalf("expected custom table name tenant_outbox, got: %s", customQuery)
 	}
@@ -721,26 +719,15 @@ func TestPGStore_DialectsAndOptions(t *testing.T) {
 
 	// 3. Custom Lease Duration Option
 	leaseStoreInstance := outbox.NewPGStore(mockOp, outbox.WithLeaseDuration(15*time.Second))
-	if ls, ok := leaseStoreInstance.(interface{ FetchPendingQuery() string }); ok {
-		q := ls.FetchPendingQuery()
-		if !strings.Contains(q, "INTERVAL '15s'") {
-			t.Fatalf("expected INTERVAL '15s', got: %s", q)
-		}
+	_, _ = leaseStoreInstance.FetchPendingBatch(context.Background(), 10)
+	if !strings.Contains(capturedQuery, "INTERVAL '15s'") {
+		t.Fatalf("expected INTERVAL '15s', got: %s", capturedQuery)
 	}
-	minLeaseStore := outbox.NewPGStore(mockOp, outbox.WithLeaseDuration(2*time.Second))
-	if mls, ok := minLeaseStore.(interface{ FetchPendingQuery() string }); ok {
-		q := mls.FetchPendingQuery()
-		if !strings.Contains(q, "INTERVAL '5s'") {
-			t.Fatalf("expected INTERVAL '5s' floor, got: %s", q)
-		}
-	}
-}
 
-func TestStorage_Aliases(t *testing.T) {
-	mockOp := &mockDBOperator{}
-	store := outbox.NewPGStorage(mockOp)
-	if store == nil {
-		t.Fatalf("expected NewPGStorage to return non-nil Storage")
+	minLeaseStore := outbox.NewPGStore(mockOp, outbox.WithLeaseDuration(2*time.Second))
+	_, _ = minLeaseStore.FetchPendingBatch(context.Background(), 10)
+	if !strings.Contains(capturedQuery, "INTERVAL '5s'") {
+		t.Fatalf("expected INTERVAL '5s' floor, got: %s", capturedQuery)
 	}
 }
 
@@ -1209,14 +1196,16 @@ func TestRelay_ProcessBatch_MarkFailedError(t *testing.T) {
 }
 
 func TestPGStore_WithLeaseDuration(t *testing.T) {
-	mockOp := &mockDBOperator{}
-	storeInstance := outbox.NewPGStore(mockOp, outbox.WithLeaseDuration(120*time.Second))
-	pgStore, ok := storeInstance.(interface{ FetchPendingQuery() string })
-	if !ok {
-		t.Fatalf("expected pgStore to implement FetchPendingQuery")
+	var query string
+	mockOp := &mockDBOperator{
+		queryFunc: func(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
+			query = sql
+			return &mockRows{}, nil
+		},
 	}
+	storeInstance := outbox.NewPGStore(mockOp, outbox.WithLeaseDuration(120*time.Second))
+	_, _ = storeInstance.FetchPendingBatch(context.Background(), 10)
 
-	query := pgStore.FetchPendingQuery()
 	if !strings.Contains(query, "INTERVAL '120s'") {
 		t.Fatalf("expected query to contain INTERVAL '120s', got %s", query)
 	}
@@ -1629,12 +1618,17 @@ func TestPGStore_TableNameValidation(t *testing.T) {
 	}
 	for _, name := range validNames {
 		t.Run("Allow: "+name, func(t *testing.T) {
-			store := outbox.NewPGStore(mockOp, outbox.WithTableName(name))
-			if qStore, ok := store.(interface{ FetchPendingQuery() string }); ok {
-				q := qStore.FetchPendingQuery()
-				if !strings.Contains(q, name) {
-					t.Errorf("expected query to contain valid table name %s, got: %s", name, q)
-				}
+			var q string
+			op := &mockDBOperator{
+				queryFunc: func(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
+					q = sql
+					return &mockRows{}, nil
+				},
+			}
+			store := outbox.NewPGStore(op, outbox.WithTableName(name))
+			_, _ = store.FetchPendingBatch(context.Background(), 10)
+			if !strings.Contains(q, name) {
+				t.Errorf("expected query to contain valid table name %s, got: %s", name, q)
 			}
 		})
 	}

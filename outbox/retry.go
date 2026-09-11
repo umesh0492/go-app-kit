@@ -81,11 +81,6 @@ func MarkNonRetryable(err error) error {
 	return &NonRetryableError{Err: err}
 }
 
-// WrapNonRetryable is an alias for MarkNonRetryable.
-func WrapNonRetryable(err error) error {
-	return MarkNonRetryable(err)
-}
-
 // IsNonRetryable inspects an error to determine whether it indicates a permanent
 // failure (e.g. malformed JSON payloads, schema validation errors, or explicit non-retryable markers).
 func IsNonRetryable(err error) bool {

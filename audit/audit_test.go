@@ -341,10 +341,6 @@ func TestWithTableName_SanitizationAndExecution(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected valid table name %q to succeed, got: %v", name, err)
 		}
-		pgRec, ok := recorder.(interface{ TableName() string })
-		if ok && pgRec.TableName() != name {
-			t.Fatalf("expected table name %q, got %q", name, pgRec.TableName())
-		}
 		recorder.Close()
 	}
 

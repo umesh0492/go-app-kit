@@ -198,16 +198,6 @@ type pgRecorder struct {
 	initErr         error
 }
 
-// TableName returns the configured table name for the audit recorder.
-func (r *pgRecorder) TableName() string {
-	return r.tableName
-}
-
-// InsertQuery returns the prepared SQL INSERT statement.
-func (r *pgRecorder) InsertQuery() string {
-	return r.insertQuery
-}
-
 // NewPGRecorder initializes an audit recorder backed by PostgreSQL and a bounded workerpool.
 func NewPGRecorder(cfg Config, opts ...Option) (Recorder, error) {
 	if cfg.DB == nil {
