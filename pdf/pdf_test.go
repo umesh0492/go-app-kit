@@ -30,18 +30,13 @@ func (m *mockGenerator) Bytes() []byte {
 }
 
 func TestGenerate_Success(t *testing.T) {
-	genFunc := func(opts pdf.Options) (pdf.Generator, error) {
-		if opts.PageSize != "Letter" || opts.Orientation != "Landscape" || opts.DPI != 150 {
-			t.Errorf("options not passed correctly: %+v", opts)
-		}
-		return &mockGenerator{
-			createFunc: func() error { return nil },
-			bytesFunc:  func() []byte { return []byte("MOCK_PDF_CONTENT") },
-		}, nil
+	mock := &mockGenerator{
+		createFunc: func() error { return nil },
+		bytesFunc:  func() []byte { return []byte("MOCK_PDF_CONTENT") },
 	}
 
 	buf, err := pdf.Generate("<html><body>Test</body></html>",
-		pdf.WithGeneratorFunc(genFunc),
+		pdf.WithGenerator(mock),
 		pdf.WithPageSize("Letter"),
 		pdf.WithOrientation("Landscape"),
 		pdf.WithDPI(150),
@@ -54,17 +49,23 @@ func TestGenerate_Success(t *testing.T) {
 	if buf == nil || buf.String() != "MOCK_PDF_CONTENT" {
 		t.Fatalf("unexpected output: %v", buf)
 	}
+	if !mock.addPageCalled {
+		t.Errorf("expected AddPage to be called")
+	}
 }
 
-func TestGenerate_NewGeneratorError(t *testing.T) {
-	expectedErr := errors.New("initialization failed")
-	genFunc := func(opts pdf.Options) (pdf.Generator, error) {
-		return nil, expectedErr
-	}
+func TestGenerate_DefaultGeneratorError(t *testing.T) {
+	origEnv := os.Getenv("WKHTMLTOPDF_PATH")
+	os.Setenv("WKHTMLTOPDF_PATH", "/nonexistent_binary_location")
+	defer func() {
+		os.Setenv("WKHTMLTOPDF_PATH", origEnv)
+		wkhtml.SetPath("")
+	}()
+	wkhtml.SetPath("")
 
-	buf, err := pdf.Generate("<html></html>", pdf.WithGeneratorFunc(genFunc))
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf("expected error %v, got %v", expectedErr, err)
+	buf, err := pdf.Generate("<html></html>")
+	if err == nil {
+		t.Fatalf("expected error with nonexistent WKHTMLTOPDF_PATH")
 	}
 	if buf != nil {
 		t.Fatalf("expected nil buffer")
@@ -284,49 +285,7 @@ func TestReceiptTemplate_Render(t *testing.T) {
 	}
 }
 
-func TestWkhtmlGenerator_Methods(t *testing.T) {
-	raw := &wkhtml.PDFGenerator{}
-	g := pdf.NewWkhtmlGenerator(raw)
-
-	g.AddPage(&wkhtml.PageReader{})
-	b := g.Bytes()
-	if b != nil {
-		t.Fatalf("expected nil bytes before create")
-	}
-
-	// Calling Create() without wkhtmltopdf installed will return an error, which is expected
-	err := g.Create()
-	if err == nil {
-		t.Logf("wkhtmltopdf binary present on host")
-	}
-}
-
-func TestDefaultNewGenerator(t *testing.T) {
-	// With valid/default options
-	g, err := pdf.NewGenerator(pdf.DefaultOptions())
-	if err != nil {
-		t.Logf("NewGenerator returned error without wkhtmltopdf in path: %v", err)
-		return
-	}
-	if g == nil {
-		t.Fatalf("expected non-nil generator")
-	}
-}
-
-func TestDefaultNewGenerator_Error(t *testing.T) {
-	origEnv := os.Getenv("WKHTMLTOPDF_PATH")
-	os.Setenv("WKHTMLTOPDF_PATH", "/nonexistent_binary_location")
-	defer func() {
-		os.Setenv("WKHTMLTOPDF_PATH", origEnv)
-		wkhtml.SetPath("")
-	}()
-	wkhtml.SetPath("")
-
-	g, err := pdf.NewGenerator(pdf.DefaultOptions())
-	if err == nil {
-		t.Fatalf("expected error with nonexistent WKHTMLTOPDF_PATH")
-	}
-	if g != nil {
-		t.Fatalf("expected nil generator on error")
-	}
+func TestGenerate_DefaultGenerator_Fallback(t *testing.T) {
+	// Attempts default wkhtmltopdf generator path when no WithGenerator option is supplied
+	_, _ = pdf.Generate("<html><body>Test</body></html>", pdf.WithTitle("Default Gen Doc"))
 }

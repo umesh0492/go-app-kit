@@ -34,26 +34,18 @@ func (w *wkhtmlGenerator) Bytes() []byte {
 	return w.PDFGenerator.Bytes()
 }
 
-// NewWkhtmlGenerator constructs a generator wrapping a raw wkhtml.PDFGenerator.
-func NewWkhtmlGenerator(g *wkhtml.PDFGenerator) Generator {
-	return &wkhtmlGenerator{PDFGenerator: g}
-}
-
-// GeneratorFunc defines the constructor signature for creating a PDF generator.
-type GeneratorFunc func(opts Options) (Generator, error)
-
 // Options configures PDF rendering properties.
 type Options struct {
-	PageSize              string        // "A4", "Letter", etc. (Default: "A4")
-	Orientation           string        // "Portrait", "Landscape" (Default: "Portrait")
-	DPI                   uint          // DPI resolution (Default: 300)
-	MarginTop             uint          // Margins in mm (Default: 10)
-	MarginBottom          uint          // Margins in mm (Default: 10)
-	MarginLeft            uint          // Margins in mm (Default: 10)
-	MarginRight           uint          // Margins in mm (Default: 10)
-	Title                 string        // Document title
-	EnableLocalFileAccess bool          // Default: false (prevents file:/// exfiltration)
-	GeneratorFunc         GeneratorFunc // Custom generator constructor
+	PageSize              string // "A4", "Letter", etc. (Default: "A4")
+	Orientation           string // "Portrait", "Landscape" (Default: "Portrait")
+	DPI                   uint   // DPI resolution (Default: 300)
+	MarginTop             uint   // Margins in mm (Default: 10)
+	MarginBottom          uint   // Margins in mm (Default: 10)
+	MarginLeft            uint   // Margins in mm (Default: 10)
+	MarginRight           uint   // Margins in mm (Default: 10)
+	Title                 string // Document title
+	EnableLocalFileAccess bool   // Default: false (prevents file:/// exfiltration)
+	generator             Generator
 }
 
 // Option modifies Options.
@@ -110,17 +102,10 @@ func WithLocalFileAccess(enable bool) Option {
 	return func(o *Options) { o.EnableLocalFileAccess = enable }
 }
 
-// WithGeneratorFunc configures a custom generator constructor.
-func WithGeneratorFunc(fn GeneratorFunc) Option {
-	return func(o *Options) { o.GeneratorFunc = fn }
-}
-
-// WithGenerator configures a specific Generator instance.
+// WithGenerator configures a specific Generator instance, allowing mock implementations for testing.
 func WithGenerator(g Generator) Option {
 	return func(o *Options) {
-		o.GeneratorFunc = func(Options) (Generator, error) {
-			return g, nil
-		}
+		o.generator = g
 	}
 }
 
@@ -143,11 +128,6 @@ func defaultGenerator(opts Options) (Generator, error) {
 	return &wkhtmlGenerator{PDFGenerator: g}, nil
 }
 
-// NewGenerator is a constructor function for creating a Generator instance with the given options.
-func NewGenerator(opts Options) (Generator, error) {
-	return defaultGenerator(opts)
-}
-
 // Generate accepts a raw HTML string and optional configurations, compiling it into a PDF bytes buffer.
 func Generate(html string, opts ...Option) (*bytes.Buffer, error) {
 	config := DefaultOptions()
@@ -155,14 +135,15 @@ func Generate(html string, opts ...Option) (*bytes.Buffer, error) {
 		opt(&config)
 	}
 
-	genFunc := config.GeneratorFunc
-	if genFunc == nil {
-		genFunc = defaultGenerator
-	}
-
-	pdfg, err := genFunc(config)
-	if err != nil {
-		return nil, err
+	var pdfg Generator
+	if config.generator != nil {
+		pdfg = config.generator
+	} else {
+		var err error
+		pdfg, err = defaultGenerator(config)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	page := wkhtml.NewPageReader(bytes.NewBufferString(html))
