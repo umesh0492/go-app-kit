@@ -64,6 +64,41 @@ jobs:
         if: matrix.go-version == '1.25.x'
         run: ./scripts/check_coverage.sh
 
+  integration:
+    name: PostgreSQL Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: outbox_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+          cache: true
+
+      - name: Run Integration Tests with Race Detector
+        env:
+          POSTGRES_TEST_URL: postgres://postgres:postgres@localhost:5432/outbox_test?sslmode=disable
+          POSTGRES_DB: outbox_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        run: go test -v -tags=integration -race ./...
+
   security:
     name: Supply Chain & Vulnerability Scanner
     runs-on: ubuntu-latest
