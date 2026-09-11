@@ -1,6 +1,6 @@
--- 001_audit_logs.sql: Immutable compliance audit trail table partitioned by range.
+-- 001_audit_logs.sql: Compliance audit trail table partitioned by range.
 -- Captures who did what, when, from where, and exact state diffs.
--- Immutability is guaranteed via both PostgreSQL trigger enforcement and role permission revocation.
+-- Append-only for application roles; database owner/superuser can bypass unless cryptographic hash-chaining is present.
 
 CREATE TABLE IF NOT EXISTS audit_logs (
     id UUID DEFAULT gen_random_uuid(),
@@ -35,11 +35,11 @@ CREATE INDEX IF NOT EXISTS idx_audit_actor
 CREATE INDEX IF NOT EXISTS idx_audit_action 
     ON audit_logs (action, created_at DESC);
 
--- Enforce append-only table constraints: immutability is guaranteed via both PostgreSQL trigger and role permission revocation
+-- Enforce append-only table constraints: append-only for application roles; database owner/superuser can bypass unless cryptographic hash-chaining is present
 CREATE OR REPLACE FUNCTION prevent_audit_log_modification()
 RETURNS TRIGGER AS $$
 BEGIN
-    RAISE EXCEPTION 'Audit logs are strictly append-only and immutable. UPDATE and DELETE operations are forbidden.';
+    RAISE EXCEPTION 'Audit logs are append-only for application roles; database owner/superuser can bypass. UPDATE and DELETE operations are forbidden.';
 END;
 $$ LANGUAGE plpgsql;
 
@@ -55,7 +55,7 @@ CREATE TRIGGER trg_prevent_audit_log_default_modification
     FOR EACH ROW
     EXECUTE FUNCTION prevent_audit_log_modification();
 
--- Defense-in-depth permission revocation: ensure table immutability is enforced at the database role level
+-- Defense-in-depth permission revocation: ensure table is append-only for application roles (database owner/superuser can bypass)
 REVOKE UPDATE, DELETE, TRUNCATE ON audit_logs FROM PUBLIC, app_user;
 
 

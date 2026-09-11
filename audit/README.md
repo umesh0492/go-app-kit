@@ -1,6 +1,6 @@
 # `audit`
 
-Structured audit logging engine with automated JSON state diffing, actor context extraction, non-blocking asynchronous recording, and range-partitioned PostgreSQL DDL with trigger-enforced append-only constraints (`trg_prevent_audit_log_modification`).
+Structured audit logging engine with automated JSON state diffing, actor context extraction, non-blocking asynchronous recording, and range-partitioned PostgreSQL DDL with trigger-enforced append-only constraints for application roles (`trg_prevent_audit_log_modification`; database owner/superuser can bypass unless cryptographic hash-chaining is present).
 
 ---
 
@@ -8,7 +8,7 @@ Structured audit logging engine with automated JSON state diffing, actor context
 
 - **Audit Trails & Attribution**: Capturing *who* (actor ID, email, role, IP address, user-agent) did *what* (action, entity type, entity ID), *when* (UTC timestamp), and *why* (auditor comment / business justification).
 - **Automated Property Diffing**: Recording fine-grained property modifications (before-and-after values) for sensitive entities (bank accounts, vendor profiles, permissions, tax settings).
-- **Append-Only Table Constraints**: Enforcing that historical audit records cannot be mutated or deleted via PostgreSQL triggers (`trg_prevent_audit_log_modification`).
+- **Append-Only Table Constraints**: Enforcing that historical audit records cannot be mutated or deleted by application roles via PostgreSQL triggers (`trg_prevent_audit_log_modification`); database owner/superuser can bypass unless cryptographic hash-chaining is present.
 - **Low-Latency Request Handling**: Persisting audit events asynchronously via bounded worker pools so database audit writes never degrade user-facing p99 response times.
 
 ---

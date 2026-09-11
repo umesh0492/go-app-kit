@@ -74,7 +74,7 @@ type FieldDiff struct {
 	New any `json:"new"`
 }
 
-// Event models an immutable compliance audit record.
+// Event models a compliance audit record (append-only for application roles; database owner/superuser can bypass).
 type Event struct {
 	ID          uuid.UUID            `json:"id"`
 	Actor       Actor                `json:"actor"`
