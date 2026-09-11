@@ -15,13 +15,20 @@ echo "   - Global Floor:       >= ${GLOBAL_FLOOR}%"
 echo "   - Per-Package Floor:  >= ${PACKAGE_FLOOR}%"
 echo "========================================================"
 
-trap 'rm -f coverage.out' EXIT
+COVERAGE_FILE="${1:-coverage.out}"
+SUMMARY_FILE="/tmp/gak_coverage_packages.txt"
 
-echo "==> Generating coverage profile in single test suite run..."
-PER_PKG_OUTPUT=$(go test -coverprofile=coverage.out ./...)
+if [ -f "${COVERAGE_FILE}" ] && [ -s "${COVERAGE_FILE}" ] && [ -f "${SUMMARY_FILE}" ]; then
+    echo "==> Reusing existing coverage profile: ${COVERAGE_FILE}"
+    PER_PKG_OUTPUT=$(cat "${SUMMARY_FILE}")
+else
+    echo "==> Generating coverage profile in single test suite run..."
+    PER_PKG_OUTPUT=$(go test -coverprofile="${COVERAGE_FILE}" ./...)
+    echo "${PER_PKG_OUTPUT}" > "${SUMMARY_FILE}"
+fi
 
 # Extract global coverage percentage
-GLOBAL_COV_STR=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
+GLOBAL_COV_STR=$(go tool cover -func="${COVERAGE_FILE}" | grep total | awk '{print $3}')
 GLOBAL_COV=$(echo "${GLOBAL_COV_STR}" | tr -d '%')
 echo "==> Global Statement Coverage: ${GLOBAL_COV_STR}"
 
