@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- pdf: Consolidated generator-injection seams down to single `WithGenerator(g Generator) Option` parameter.
+- outbox: Streamlined `IsNonRetryable` contract to evaluate `ErrNonRetryable` (via `errors.Is`) and `MarkNonRetryable` (`*NonRetryableError` via `errors.As`), removing implicit reflection and ad-hoc JSON syntax/unmarshal error inspections.
+- outbox: Made `FetchPendingQuery()` an unexported method (`fetchPendingQuery()`) on unexported `*pgStore`.
+
+### Removed (BREAKING)
+- pdf: Removed `NewGenerator`, `NewWkhtmlGenerator`, `GeneratorFunc`, and `WithGeneratorFunc` in favor of `WithGenerator`.
+- outbox: Removed `WrapNonRetryable` alias in favor of `MarkNonRetryable`.
+- outbox: Removed redundant `NewPGStorage`, `Storage`, and `PGStorage` aliases in favor of `NewPGStore` and `Store`.
+- audit: Removed dead getters `TableName()` and `InsertQuery()` from unexported `*pgRecorder`.
+
 ## [0.1.0] - 2026-09-09
 
 Initial public release.

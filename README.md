@@ -245,18 +245,18 @@ go test -v ./...
 
 Coverage across packages in `go-app-kit` is measured using Go's statement-level coverage tool (`go test -coverprofile=coverage.out ./...`):
 
-> **Overall Repository Statement Coverage: 91.7%** (Zero data races across `-race`)
+> **Overall Repository Statement Coverage: 91.6%** (Zero data races across `-race`)
 
 | Package | Purpose | Statement Coverage |
 |---|---|---|
 | `india` | Statutory Indian validations (GSTIN mod-36, PAN, IFSC, Aadhaar Verhoeff D5, INR Money, Aging) | **97.9%** |
 | `export` | Low-memory streaming CSV exporter with Excel UTF-8 BOM & formula injection protection | **93.8%** |
 | `notifications` | Multi-channel notification broker (SMTP Email, Slack, Webhook HMAC-SHA256 & versioning) | **92.3%** |
-| `outbox` | PostgreSQL transactional outbox engine with row-level locked poller & lease fencing | **89.5%** |
-| `audit` | Partitioned PostgreSQL audit logging with automated JSON diffing & append-only triggers | **88.8%** |
-| `pdf` | In-memory HTML-to-PDF compilation & embedded GST invoice templates | **83.3%** |
+| `outbox` | PostgreSQL transactional outbox engine with row-level locked poller & lease fencing | **89.7%** |
+| `audit` | Partitioned PostgreSQL audit logging with automated JSON diffing & append-only triggers | **89.5%** |
+| `pdf` | In-memory HTML-to-PDF compilation & embedded GST invoice templates | **79.0%** |
 | `examples/invoice_service` | Reference microservice with end-to-end integration test & exact paise math | **82.9%** |
-| **Total Statement Coverage** | **Cumulative across all packages** | **91.7%** |
+| **Total Statement Coverage** | **Cumulative across all packages** | **91.6%** |
 
 ---
 
