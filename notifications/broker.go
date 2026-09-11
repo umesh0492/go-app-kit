@@ -122,8 +122,13 @@ func (b *defaultBroker) Send(ctx context.Context, msg Message) error {
 	return errors.Join(errs...)
 }
 
-// SendAsync enqueues the message for non-blocking background dispatching via the worker pool.
+// SendAsync enqueues the message for non-blocking background dispatching via the worker pool,
+// respecting context cancellation and deadlines when submitting to the queue.
 func (b *defaultBroker) SendAsync(ctx context.Context, msg Message) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	b.mu.RLock()
 	if b.closed {
 		b.mu.RUnlock()
@@ -131,7 +136,7 @@ func (b *defaultBroker) SendAsync(ctx context.Context, msg Message) error {
 	}
 	b.mu.RUnlock()
 
-	return b.pool.Submit(func() {
+	return b.pool.SubmitContext(ctx, func() {
 		// Use a detached background context with timeout for background dispatch
 		dispatchCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()

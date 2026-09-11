@@ -151,6 +151,38 @@ func TestBroker_SendAsync(t *testing.T) {
 	wg.Wait()
 }
 
+func TestBroker_SendAsync_ContextCancellation(t *testing.T) {
+	broker := notifications.NewBroker(notifications.Config{
+		Workers:   2,
+		QueueSize: 10,
+	})
+	defer broker.Close()
+
+	t.Run("Already canceled context returns context.Canceled", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		err := broker.SendAsync(ctx, notifications.Message{
+			Recipients: []string{"user@test.com"},
+		})
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("expected context.Canceled, got: %v", err)
+		}
+	})
+
+	t.Run("Expired deadline context returns context.DeadlineExceeded", func(t *testing.T) {
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+		defer cancel()
+
+		err := broker.SendAsync(ctx, notifications.Message{
+			Recipients: []string{"user@test.com"},
+		})
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("expected context.DeadlineExceeded, got: %v", err)
+		}
+	})
+}
+
 func TestBroker_Closed(t *testing.T) {
 	broker := notifications.NewBroker(notifications.DefaultConfig())
 	broker.Close()
