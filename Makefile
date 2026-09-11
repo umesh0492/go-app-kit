@@ -12,6 +12,10 @@ cover:
 	go test -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out
 
+test-integration:
+	go test -tags=integration -v ./outbox/...
+
+
 lint:
 	golangci-lint run ./...
 

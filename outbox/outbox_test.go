@@ -718,6 +718,22 @@ func TestPGStore_DialectsAndOptions(t *testing.T) {
 	if !strings.Contains(customQuery, "UPDATE tenant_outbox") {
 		t.Fatalf("expected custom table name in UPDATE clause, got: %s", customQuery)
 	}
+
+	// 3. Custom Lease Duration Option
+	leaseStoreInstance := outbox.NewPGStore(mockOp, outbox.WithLeaseDuration(15*time.Second))
+	if ls, ok := leaseStoreInstance.(interface{ FetchPendingQuery() string }); ok {
+		q := ls.FetchPendingQuery()
+		if !strings.Contains(q, "INTERVAL '15s'") {
+			t.Fatalf("expected INTERVAL '15s', got: %s", q)
+		}
+	}
+	minLeaseStore := outbox.NewPGStore(mockOp, outbox.WithLeaseDuration(2*time.Second))
+	if mls, ok := minLeaseStore.(interface{ FetchPendingQuery() string }); ok {
+		q := mls.FetchPendingQuery()
+		if !strings.Contains(q, "INTERVAL '5s'") {
+			t.Fatalf("expected INTERVAL '5s' floor, got: %s", q)
+		}
+	}
 }
 
 func TestStorage_Aliases(t *testing.T) {
