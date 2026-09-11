@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -133,8 +134,14 @@ func TestProcessInvoice_EndToEnd(t *testing.T) {
 	if ar.events[0].Action != "INVOICE_GENERATED" || ar.events[0].EntityID != "INV-2026-9001" {
 		t.Fatalf("unexpected audit log: %+v", ar.events[0])
 	}
-	if paise, ok := ar.events[0].AfterState["total_paise"].(int64); ok && paise != 11800000 {
-		t.Fatalf("expected total_paise 11800000, got %v", paise)
+	if paise, ok := ar.events[0].AfterState["total_paise"].(int64); !ok || paise != 11800000 {
+		t.Fatalf("expected total_paise 11800000, got %v", ar.events[0].AfterState["total_paise"])
+	}
+	if grandTotal, ok := ar.events[0].AfterState["grand_total"].(string); !ok || grandTotal != "1,18,000.00" {
+		t.Fatalf("expected grand_total formatted string '1,18,000.00', got %v", ar.events[0].AfterState["grand_total"])
+	}
+	if _, ok := ar.events[0].AfterState["grand_total"].(float64); ok {
+		t.Fatalf("audit event grand_total must not be float64")
 	}
 
 	// Verify Outbox Event
@@ -146,6 +153,19 @@ func TestProcessInvoice_EndToEnd(t *testing.T) {
 	}
 	if os.lastTx != mockTx {
 		t.Fatalf("expected active tx to be passed to outboxStore.Insert, got %v", os.lastTx)
+	}
+	var outboxPayload map[string]any
+	if err := json.Unmarshal(os.events[0].Payload, &outboxPayload); err != nil {
+		t.Fatalf("failed to unmarshal outbox payload: %v", err)
+	}
+	if gt, ok := outboxPayload["grand_total"].(string); !ok || gt != "1,18,000.00" {
+		t.Fatalf("expected outbox grand_total string '1,18,000.00', got %v", outboxPayload["grand_total"])
+	}
+	if _, ok := outboxPayload["grand_total"].(float64); ok {
+		t.Fatalf("outbox event grand_total must not be float64")
+	}
+	if paise, ok := outboxPayload["total_paise"].(float64); !ok || int64(paise) != 11800000 {
+		t.Fatalf("expected outbox total_paise 11800000, got %v", outboxPayload["total_paise"])
 	}
 
 	// Verify Notification Message

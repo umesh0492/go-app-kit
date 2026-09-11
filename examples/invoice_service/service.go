@@ -230,11 +230,12 @@ func (s *InvoiceService) ProcessInvoice(ctx context.Context, tx outbox.DBOperato
 		return nil, fmt.Errorf("failed to compile invoice PDF: %w", err)
 	}
 
-	// 4. Record Immutable Audit Trail
+	// 4. Record Compliance Audit Trail
 	auditEvt := audit.NewEvent(ctx, "INVOICE_GENERATED", "Invoice", req.InvoiceNumber, nil, map[string]any{
 		"invoice_number": req.InvoiceNumber,
-		"grand_total":    totalMoney.Float64(),
+		"grand_total":    totalMoney.Format(),
 		"total_paise":    totalMoney.Paise(),
+		"currency":       "INR",
 		"buyer_gstin":    req.BuyerGSTIN,
 	})
 	if err := s.auditRecorder.Record(ctx, auditEvt); err != nil {
@@ -244,8 +245,9 @@ func (s *InvoiceService) ProcessInvoice(ctx context.Context, tx outbox.DBOperato
 	// 5. Enqueue Domain Event to Transactional Outbox
 	outboxEvt, err := outbox.NewEvent("Invoice", req.InvoiceNumber, "InvoiceIssued", map[string]any{
 		"invoice_number": req.InvoiceNumber,
-		"grand_total":    totalMoney.Float64(),
+		"grand_total":    totalMoney.Format(),
 		"total_paise":    totalMoney.Paise(),
+		"currency":       "INR",
 		"buyer_email":    req.BuyerEmail,
 	})
 	if err != nil {
