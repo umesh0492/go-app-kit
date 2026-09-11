@@ -347,6 +347,7 @@ func TestOutbox_Postgres_TimeoutAndCancellation_NoDoubleDelivery(t *testing.T) {
 		EventType:     "shipment.dispatched",
 		Payload:       []byte(`{"tracking": "TRK-999"}`),
 		Status:        outbox.StatusPending,
+		MaxRetries:    5,
 		ScheduledAt:   time.Now().UTC().Add(-5 * time.Second),
 		NextRetryAt:   time.Now().UTC().Add(-5 * time.Second),
 		CreatedAt:     time.Now().UTC().Add(-5 * time.Second),
