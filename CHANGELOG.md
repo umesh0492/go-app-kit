@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- india: Emit integer paise, formatted string, and currency in `Money.MarshalJSON` without floating-point wire values, and decode structured JSON, integer paise, formatted strings, and legacy floats in `Money.UnmarshalJSON`.
+- notifications: Honor context cancellation and deadlines in `SendAsync` during bounded worker pool queuing.
+- audit: Clarified append-only table constraints in DDL and documentation to reflect that guarantees apply to application roles while database superusers can bypass.
+- ci: Scoped gosec G404 and G104 linter exclusions to tests (`_test.go`) instead of global suppression.
+- ci: Optimized `check_coverage.sh` to execute the test suite once and support profile reuse.
+- examples/invoice_service: Migrated audit and outbox wire event payloads from float64 to integer paise and formatted currency representations.
+
 ### Changed
 - pdf: Consolidated generator-injection seams down to single `WithGenerator(g Generator) Option` parameter.
 - outbox: Streamlined `IsNonRetryable` contract to evaluate `ErrNonRetryable` (via `errors.Is`) and `MarkNonRetryable` (`*NonRetryableError` via `errors.As`), removing implicit reflection and ad-hoc JSON syntax/unmarshal error inspections.
