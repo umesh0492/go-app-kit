@@ -47,10 +47,6 @@ linters:
         - performance
     gocyclo:
       min-complexity: 15
-    gosec:
-      excludes:
-        - G104
-        - G404
     govet:
       disable:
         - fieldalignment
@@ -106,6 +102,11 @@ linters:
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
+  exclude-rules:
+    - path: "_test\\.go"
+      text: "G104|G404"
+      linters:
+        - gosec
 formatters:
   enable:
     - gofmt
