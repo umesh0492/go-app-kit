@@ -123,7 +123,7 @@ func (s *CSVStreamer[T]) WriteHeader() error {
 // spaces (' '), newlines ('\n'), CRLF ("\r\n"), and non-breaking spaces (NBSP '\u00a0').
 // Bare '\r' (not followed by '\n') is not trimmed because it is a formula trigger character.
 func trimLeadingCSVWhitespace(val string) string {
-	for len(val) > 0 {
+	for val != "" {
 		switch {
 		case val[0] == ' ' || val[0] == '\n':
 			val = val[1:]

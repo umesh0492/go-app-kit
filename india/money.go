@@ -168,6 +168,37 @@ func (m Money) MarshalJSON() ([]byte, error) {
 // 2. Integer number in paise: 12345
 // 3. String formatted currency: "123.45" or "12,34,567.89"
 // 4. Legacy JSON float number: 1234.50
+func unmarshalMoneyObject(data []byte) (int64, error) {
+	var obj struct {
+		AmountPaise *int64  `json:"amount_paise"`
+		Paise       *int64  `json:"paise"`
+		Formatted   *string `json:"formatted"`
+	}
+	if err := json.Unmarshal(data, &obj); err != nil {
+		return 0, fmt.Errorf("%w: %w", ErrInvalidMoneyFormat, err)
+	}
+	if obj.AmountPaise != nil {
+		return *obj.AmountPaise, nil
+	}
+	if obj.Paise != nil {
+		return *obj.Paise, nil
+	}
+	if obj.Formatted != nil {
+		clean := strings.ReplaceAll(*obj.Formatted, ",", "")
+		f, err := strconv.ParseFloat(clean, 64)
+		if err != nil {
+			return 0, fmt.Errorf("%w: %w", ErrInvalidMoneyFormat, err)
+		}
+		return int64(math.Round(f * 100)), nil
+	}
+	return 0, ErrInvalidMoneyFormat
+}
+
+// UnmarshalJSON unmarshals Money from:
+// 1. Structured JSON object: {"amount_paise": 12345, "formatted": "123.45", "currency": "INR"}
+// 2. Integer number in paise: 12345
+// 3. String formatted currency: "123.45" or "12,34,567.89"
+// 4. Legacy JSON float number: 1234.50
 func (m *Money) UnmarshalJSON(data []byte) error {
 	s := strings.TrimSpace(string(data))
 	if s == "null" || s == "" {
@@ -177,32 +208,12 @@ func (m *Money) UnmarshalJSON(data []byte) error {
 
 	// 1. Structured JSON object
 	if strings.HasPrefix(s, "{") && strings.HasSuffix(s, "}") {
-		var obj struct {
-			AmountPaise *int64  `json:"amount_paise"`
-			Paise       *int64  `json:"paise"`
-			Formatted   *string `json:"formatted"`
+		p, err := unmarshalMoneyObject(data)
+		if err != nil {
+			return err
 		}
-		if err := json.Unmarshal(data, &obj); err != nil {
-			return fmt.Errorf("%w: %w", ErrInvalidMoneyFormat, err)
-		}
-		if obj.AmountPaise != nil {
-			m.paise = *obj.AmountPaise
-			return nil
-		}
-		if obj.Paise != nil {
-			m.paise = *obj.Paise
-			return nil
-		}
-		if obj.Formatted != nil {
-			clean := strings.ReplaceAll(*obj.Formatted, ",", "")
-			f, err := strconv.ParseFloat(clean, 64)
-			if err != nil {
-				return fmt.Errorf("%w: %w", ErrInvalidMoneyFormat, err)
-			}
-			m.paise = int64(math.Round(f * 100))
-			return nil
-		}
-		return ErrInvalidMoneyFormat
+		m.paise = p
+		return nil
 	}
 
 	// 2. Quoted string representation

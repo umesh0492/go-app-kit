@@ -7,7 +7,7 @@ End-to-end reference enterprise microservice demonstrating the composition of `i
 ## When to Use
 
 - **Reference Architecture Blueprint**: Use this sample as a production-grade template for building B2B financial services, procurement engines, or billing systems in Go.
-- **Cross-Module Composition**: Learn how to combine offline statutory validation, in-memory PDF rendering, transactional outbox dispatching, multi-channel notification queuing, and immutable compliance auditing.
+- **Cross-Module Composition**: Learn how to combine offline statutory validation, in-memory PDF rendering, transactional outbox dispatching, multi-channel notification queuing, and append-only compliance auditing.
 - **Unit & Integration Testing Patterns**: See how to write deterministic test suites that mock external dependencies (database pools, SMTP servers, PDF generators) without requiring live third-party infrastructure.
 
 ---
