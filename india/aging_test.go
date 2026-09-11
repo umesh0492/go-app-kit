@@ -1,12 +1,41 @@
 package india_test
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/umesh0492/go-app-kit/india"
 )
+
+func TestAgingMoneySerialization_NoFloat(t *testing.T) {
+	type AgingBalance struct {
+		Bucket string      `json:"bucket"`
+		Amount india.Money `json:"amount"`
+	}
+
+	entry := AgingBalance{
+		Bucket: india.AgingBucket(45),
+		Amount: india.NewMoney(1234550),
+	}
+
+	data, err := json.Marshal(entry)
+	assert.NoError(t, err)
+
+	// Assert that serialization contains NO float number on the wire
+	wireStr := string(data)
+	assert.NotContains(t, wireStr, "12345.50")
+	assert.NotContains(t, wireStr, "12345.5")
+	assert.Contains(t, wireStr, `"amount_paise":1234550`)
+	assert.Contains(t, wireStr, `"formatted":"12,345.50"`)
+	assert.Contains(t, wireStr, `"currency":"INR"`)
+
+	var parsed AgingBalance
+	err = json.Unmarshal(data, &parsed)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(1234550), parsed.Amount.Paise())
+}
 
 func TestAgingBucket(t *testing.T) {
 	assert.Equal(t, "Current", india.AgingBucket(0))

@@ -2,6 +2,7 @@ package india
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -148,21 +149,81 @@ func (m Money) Words() string {
 	return AmountToWordsINR(m.Rupees())
 }
 
-// MarshalJSON serializes Money as a JSON number with two decimal places.
+// MarshalJSON serializes Money as a JSON object containing integer paise, formatted string, and currency.
+// This ensures that no IEEE-754 floating-point numbers are emitted on the wire.
 func (m Money) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("%.2f", m.Float64())), nil
+	return json.Marshal(struct {
+		AmountPaise int64  `json:"amount_paise"`
+		Formatted   string `json:"formatted"`
+		Currency    string `json:"currency"`
+	}{
+		AmountPaise: m.paise,
+		Formatted:   m.Format(),
+		Currency:    "INR",
+	})
 }
 
-// UnmarshalJSON unmarshals from a JSON number (1234.50) or formatted string ("1234.50" or "12,34,567.89").
+// UnmarshalJSON unmarshals Money from:
+// 1. Structured JSON object: {"amount_paise": 12345, "formatted": "123.45", "currency": "INR"}
+// 2. Integer number in paise: 12345
+// 3. String formatted currency: "123.45" or "12,34,567.89"
+// 4. Legacy JSON float number: 1234.50
 func (m *Money) UnmarshalJSON(data []byte) error {
-	s := string(data)
+	s := strings.TrimSpace(string(data))
 	if s == "null" || s == "" {
 		m.paise = 0
 		return nil
 	}
+
+	// 1. Structured JSON object
+	if strings.HasPrefix(s, "{") && strings.HasSuffix(s, "}") {
+		var obj struct {
+			AmountPaise *int64  `json:"amount_paise"`
+			Paise       *int64  `json:"paise"`
+			Formatted   *string `json:"formatted"`
+		}
+		if err := json.Unmarshal(data, &obj); err != nil {
+			return fmt.Errorf("%w: %w", ErrInvalidMoneyFormat, err)
+		}
+		if obj.AmountPaise != nil {
+			m.paise = *obj.AmountPaise
+			return nil
+		}
+		if obj.Paise != nil {
+			m.paise = *obj.Paise
+			return nil
+		}
+		if obj.Formatted != nil {
+			clean := strings.ReplaceAll(*obj.Formatted, ",", "")
+			f, err := strconv.ParseFloat(clean, 64)
+			if err != nil {
+				return fmt.Errorf("%w: %w", ErrInvalidMoneyFormat, err)
+			}
+			m.paise = int64(math.Round(f * 100))
+			return nil
+		}
+		return ErrInvalidMoneyFormat
+	}
+
+	// 2. Quoted string representation
 	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
 		s = s[1 : len(s)-1]
 		s = strings.ReplaceAll(s, ",", "")
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrInvalidMoneyFormat, err)
+		}
+		m.paise = int64(math.Round(f * 100))
+		return nil
+	}
+
+	// 3. Number: integer paise or decimal float
+	if !strings.Contains(s, ".") {
+		p, err := strconv.ParseInt(s, 10, 64)
+		if err == nil {
+			m.paise = p
+			return nil
+		}
 	}
 	f, err := strconv.ParseFloat(s, 64)
 	if err != nil {

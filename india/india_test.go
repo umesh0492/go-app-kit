@@ -662,8 +662,13 @@ func TestMoney(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Marshal failed: %v", err)
 		}
-		if string(data) != `{"amount":1500.75}` {
-			t.Fatalf("unexpected JSON: %s", string(data))
+		// Assert that serialization contains NO float number on the wire
+		expectedJSON := `{"amount":{"amount_paise":150075,"formatted":"1,500.75","currency":"INR"}}`
+		if string(data) != expectedJSON {
+			t.Fatalf("unexpected JSON: %s, expected: %s", string(data), expectedJSON)
+		}
+		if strings.Contains(string(data), `1500.75`) {
+			t.Fatalf("wire serialization must not contain float number: %s", string(data))
 		}
 
 		var parsed Invoice
@@ -674,13 +679,70 @@ func TestMoney(t *testing.T) {
 			t.Fatalf("parsed amount mismatch: %d", parsed.Amount.Paise())
 		}
 
-		// Unmarshal string representation
+		// Unmarshal integer paise representation
+		intJSON := `{"amount":150075}`
+		if err := json.Unmarshal([]byte(intJSON), &parsed); err != nil {
+			t.Fatalf("Unmarshal integer paise failed: %v", err)
+		}
+		if parsed.Amount.Paise() != 150075 {
+			t.Fatalf("parsed integer paise mismatch: %d", parsed.Amount.Paise())
+		}
+
+		// Unmarshal formatted string representation
 		jsonStr := `{"amount":"12,34,567.89"}`
 		if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
 			t.Fatalf("Unmarshal formatted string failed: %v", err)
 		}
 		if parsed.Amount.Paise() != 123456789 {
 			t.Fatalf("parsed formatted string mismatch: %d", parsed.Amount.Paise())
+		}
+
+		// Unmarshal legacy float number gracefully
+		legacyFloatJSON := `{"amount":1500.75}`
+		if err := json.Unmarshal([]byte(legacyFloatJSON), &parsed); err != nil {
+			t.Fatalf("Unmarshal legacy float failed: %v", err)
+		}
+		if parsed.Amount.Paise() != 150075 {
+			t.Fatalf("parsed legacy float mismatch: %d", parsed.Amount.Paise())
+		}
+
+		// Unmarshal object with paise field
+		paiseJSON := `{"amount":{"paise":150075}}`
+		if err := json.Unmarshal([]byte(paiseJSON), &parsed); err != nil {
+			t.Fatalf("Unmarshal paise object failed: %v", err)
+		}
+		if parsed.Amount.Paise() != 150075 {
+			t.Fatalf("parsed paise object mismatch: %d", parsed.Amount.Paise())
+		}
+
+		// Unmarshal object with formatted string
+		formattedJSON := `{"amount":{"formatted":"1,500.75"}}`
+		if err := json.Unmarshal([]byte(formattedJSON), &parsed); err != nil {
+			t.Fatalf("Unmarshal formatted object failed: %v", err)
+		}
+		if parsed.Amount.Paise() != 150075 {
+			t.Fatalf("parsed formatted object mismatch: %d", parsed.Amount.Paise())
+		}
+
+		// Unmarshal empty object returns error
+		if err := json.Unmarshal([]byte(`{"amount":{}}`), &parsed); err == nil {
+			t.Fatalf("expected error on empty object")
+		}
+
+		// Unmarshal object with invalid formatted string
+		if err := json.Unmarshal([]byte(`{"amount":{"formatted":"not-a-number"}}`), &parsed); err == nil {
+			t.Fatalf("expected error on invalid formatted object")
+		}
+
+		// Unmarshal object with malformed types
+		if err := json.Unmarshal([]byte(`{"amount":{"amount_paise":"not-an-int"}}`), &parsed); err == nil {
+			t.Fatalf("expected error on malformed amount_paise type")
+		}
+
+		// Unmarshal empty string
+		var emptyMoney india.Money
+		if err := emptyMoney.UnmarshalJSON([]byte("")); err != nil || emptyMoney.Paise() != 0 {
+			t.Fatalf("expected empty string to unmarshal to 0")
 		}
 
 		// Unmarshal invalid string
