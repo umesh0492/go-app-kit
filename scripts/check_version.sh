@@ -45,13 +45,13 @@ if [ "$CHANGELOG_VER" != "$README_GET_VER" ]; then
   exit 1
 fi
 
-if [ "$CHANGELOG_VER" != "0.1.0" ]; then
-  echo "❌ Error: Expected repository version to be 0.1.0, but got $CHANGELOG_VER"
+if [ "$CHANGELOG_VER" != "0.2.0" ]; then
+  echo "❌ Error: Expected repository version to be 0.2.0, but got $CHANGELOG_VER"
   exit 1
 fi
 
-if [ "$GOLIBS_DEP" != "v0.1.0" ]; then
-  echo "❌ Error: Expected go-libs dependency to be v0.1.0, but got $GOLIBS_DEP"
+if [ "$GOLIBS_DEP" != "v0.1.0" ] && [ "$GOLIBS_DEP" != "v0.2.0" ]; then
+  echo "❌ Error: Expected go-libs dependency to be v0.1.0 or v0.2.0, but got $GOLIBS_DEP"
   exit 1
 fi
 

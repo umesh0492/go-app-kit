@@ -1,4 +1,6 @@
-# go-app-kit · v0.1.0
+# go-app-kit · v0.2.0
+
+> **Note on Repository History**: History reconstructed on 2026-09-11; see [CHANGELOG.md](CHANGELOG.md) for the real feature timeline.
 
 [![CI](https://github.com/umesh0492/go-app-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/umesh0492/go-app-kit/actions/workflows/ci.yml)
 [![Code Quality: golangci-lint](https://img.shields.io/badge/code%20quality-golangci--lint-brightgreen?logo=go)](https://golangci-lint.run/)
@@ -51,7 +53,7 @@ While [`go-libs`](https://github.com/umesh0492/go-libs) provides low-level, zero
 ### Standalone Import
 When consuming `go-app-kit` in your microservice:
 ```bash
-go get github.com/umesh0492/go-app-kit@v0.1.0
+go get github.com/umesh0492/go-app-kit@v0.2.0
 ```
 
 ### Multi-Module Local Development (`go.work`)

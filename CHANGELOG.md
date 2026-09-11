@@ -1,11 +1,13 @@
 # Changelog
 
+> **Note on Repository History**: History reconstructed on 2026-09-11; see CHANGELOG.md for the real feature timeline.
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-09-11
 
 ### Fixed
 - india: Emit integer paise, formatted string, and currency in `Money.MarshalJSON` without floating-point wire values, and decode structured JSON, integer paise, formatted strings, and legacy floats in `Money.UnmarshalJSON`.
@@ -43,3 +45,7 @@ Initial public release.
 - PDF generator requires a pre-installed wkhtmltopdf binary on the host system (NOT Chromium or Google Chrome).
 - Outbox storage requires PostgreSQL 12+ for SKIP LOCKED concurrency support.
 - Email sending uses standard net/smtp without connection pooling.
+
+### Historical Errata
+- Commit `06226c5` subject previously referenced "headless Chrome HTML-to-PDF rendering wrapper"; its diff introduced the `wkhtmltopdf` wrapper.
+
