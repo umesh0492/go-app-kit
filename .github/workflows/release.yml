@@ -14,6 +14,28 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4.1.7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+
+      - name: Verify remote tag collision
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          HEAD_HASH=$(git rev-parse HEAD)
+          REMOTE_HASH=$(git ls-remote --tags origin | awk -v tag="refs/tags/${TAG}^{}" '$2 == tag {print $1}')
+          if [ -z "$REMOTE_HASH" ]; then
+            REMOTE_HASH=$(git ls-remote --tags origin | awk -v tag="refs/tags/${TAG}" '$2 == tag {print $1}')
+          fi
+          if [ -n "$REMOTE_HASH" ] && [ "$REMOTE_HASH" != "$HEAD_HASH" ]; then
+            echo "Error: Remote tag ${TAG} (${REMOTE_HASH}) does not match HEAD (${HEAD_HASH})"
+            exit 1
+          fi
+          echo "Tag validation passed: remote tag ${TAG} matches HEAD or does not yet exist."
 
       - name: Create GitHub Release
         env:
@@ -21,3 +43,13 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           gh release create "$TAG" --notes-file <(awk '/^## \[/{n++} n==1' CHANGELOG.md)
+
+      - name: Verify go get in isolated scratch directory
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          SCRATCH_DIR=$(mktemp -d)
+          cd "$SCRATCH_DIR"
+          go mod init scratch
+          GOPROXY=direct go get "github.com/umesh0492/go-app-kit@${TAG}"
+          rm -rf "$SCRATCH_DIR"
