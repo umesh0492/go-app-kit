@@ -10,12 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2026-09-11
 
 ### Fixed
-- india: Emit integer paise, formatted string, and currency in `Money.MarshalJSON` without floating-point wire values, and decode structured JSON, integer paise, formatted strings, and legacy floats in `Money.UnmarshalJSON`.
-- notifications: Honor context cancellation and deadlines in `SendAsync` during bounded worker pool queuing.
-- audit: Clarified append-only table constraints in DDL and documentation to reflect that guarantees apply to application roles while database superusers can bypass.
-- ci: Scoped gosec G404 and G104 linter exclusions to tests (`_test.go`) instead of global suppression.
-- ci: Optimized `check_coverage.sh` to execute the test suite once and support profile reuse.
-- examples/invoice_service: Migrated audit and outbox wire event payloads from float64 to integer paise and formatted currency representations.
+- outbox: Validate `WithTableName` SQL identifier against injection using strict regex matching (`170e6b5`).
+- outbox: Enforce strict lease token fencing in `MarkPublished` and `MarkFailed`, returning `ErrLeaseExpired` on stale or conflicting lease tokens (`c819672`).
+- notifications: Enforce mandatory timestamp freshness and clock-skew tolerance in webhook verification (`VerifyWebhook`, `WebhookVerifier`) to eliminate signature-only replay attacks (`35a62bb`).
+- build: Eliminate `go.mod` local `replace` directive for standalone distribution and enforce ban in CI (`6ec1f8a`).
+- outbox/ci: Add real PostgreSQL SKIP LOCKED integration test suite (`outbox_integration_test.go`) and dedicated GitHub Actions CI service container job (`b5572c1`, `735d8aa`).
+- india: Emit integer paise (`amount_paise`), formatted string, and currency in `Money.MarshalJSON` without float wire values, and support backward-compatible decoding in `Money.UnmarshalJSON` (`cea966d`).
+- notifications: Honor context cancellation and deadlines in notification broker `SendAsync` during bounded worker pool queue enqueueing (`3609f19`).
+- audit: Clarify append-only table constraints in DDL and documentation to reflect that guarantees apply to application roles while database superusers can bypass (`3bfacc5`).
+- ci: Scope gosec G404 and G104 exclusions to test files (`_test.go`) instead of global suppression (`a7fa874`).
+- ci: Optimize `check_coverage.sh` to run the test suite once and support coverage profile reuse (`5f787ec`).
+- examples/invoice_service: Refactor audit and outbox wire event payloads from float64 to integer paise and formatted currency representations (`aad5e62`).
 
 ### Changed
 - pdf: Consolidated generator-injection seams down to single `WithGenerator(g Generator) Option` parameter.
