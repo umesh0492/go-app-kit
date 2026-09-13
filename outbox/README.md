@@ -4,6 +4,15 @@ Guaranteed at-least-once domain event delivery eliminating the dual-write proble
 
 ---
 
+## Reference Store vs. Custom Schemas
+
+> [!IMPORTANT]
+> `NewPGStore(db DBOperator, opts ...StoreOption) Store` is the production-ready reference implementation for PostgreSQL DDL (`ddl/001_outbox_events.sql` and `ddl/002_outbox_concurrency_index.sql`), implementing SKIP LOCKED worker leasing, lease-token fencing, and retry backoff.
+>
+> This package defines the Store interface; production use requires implementing Store against your schema; see outbox_integration_test.go as the reference for correct SKIP LOCKED + fencing semantics.
+
+---
+
 ## When to Use
 
 - **Dual-Write Prevention**: Persisting domain entities (Orders, Invoices, Accounts) and their corresponding domain events within the same atomic ACID database transaction.

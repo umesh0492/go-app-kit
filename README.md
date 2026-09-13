@@ -156,6 +156,12 @@ err := broker.SendAsync(ctx, notifications.Message{
 
 ### 4. `outbox` - PostgreSQL Transactional Outbox Engine
 Guarantees at-least-once message delivery without dual-write race conditions:
+
+> [!IMPORTANT]
+> **Store Interface & Reference Implementation**: `NewPGStore(db DBOperator, opts ...StoreOption) Store` is the production-ready reference implementation for PostgreSQL DDL (`ddl/001_outbox_events.sql` and `ddl/002_outbox_concurrency_index.sql`), implementing SKIP LOCKED worker leasing, lease-token fencing, and retry backoff.
+>
+> This package defines the Store interface; production use requires implementing Store against your schema; see outbox_integration_test.go as the reference for correct SKIP LOCKED + fencing semantics.
+
 - **DDL** (`001_outbox_events.sql` & `002_outbox_concurrency_index.sql`): Production PostgreSQL schema with composite index `idx_outbox_poll ON outbox_events (status, next_retry_at, created_at)` for high-throughput, contention-free polling, `lease_token UUID` fencing, and `idx_outbox_aggregate ON outbox_events (aggregate_type, aggregate_id, created_at DESC)` for entity history lookups.
 - **PostgreSQL Exclusivity**: Operates exclusively with PostgreSQL via `github.com/jackc/pgx/v5` parameterized queries (`$1, $2, ...`). *(Note: No MySQL dialect support is implemented or supported at runtime).*
 - **Relay Poller** (`NewRelay`): Queries ready events using `SELECT ... FOR UPDATE SKIP LOCKED` and atomic lease renewal (`WithLeaseDuration`) with fencing tokens to allow multiple service replicas to poll concurrently without duplicate dispatches or lease clobbering.
